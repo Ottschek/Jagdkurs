@@ -201,7 +201,7 @@
   .ios-install-close:hover { opacity: 1; }
 
   .cardmeta { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--ink-soft);
-    display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+    display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; justify-content: space-between; }
   .cardmeta .dot { opacity: 0.5; }
 
   /* ---------- Flashcard ---------- */
@@ -257,6 +257,39 @@
 
   /* ---------- Bilderquiz (image quiz) ---------- */
   .iq-scopebar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+  /* ---------- Leitner-Karteikasten Fächer-Anzeige ---------- */
+  .iq-fachwrap { background:var(--paper-2); border:1px solid var(--line); border-radius:12px;
+    padding:12px 14px; margin-bottom:16px; }
+  .iq-fachhead { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;
+    font-family:'Work Sans',sans-serif; font-weight:600; font-size:14px; color:var(--bark); }
+  .iq-leitner-toggle { font-family:'JetBrains Mono',monospace; font-size:11px; padding:4px 10px;
+    border-radius:20px; border:1.5px solid var(--line); background:var(--paper); color:var(--ink-soft);
+    cursor:pointer; font-weight:600; }
+  .iq-leitner-toggle.on { background:var(--moss); color:#fff; border-color:var(--moss); }
+  .iq-fach { display:flex; align-items:center; gap:9px; margin:6px 0; width:100%;
+    background:none; border:1.5px solid transparent; border-radius:9px; padding:4px 6px; cursor:pointer;
+    font-family:inherit; text-align:left; transition:background 0.15s, border-color 0.15s; }
+  .iq-fach:hover:not(.empty) { background:rgba(120,120,120,0.09); }
+  .iq-fach.active { border-color:var(--bark); background:rgba(120,120,120,0.12); }
+  .iq-fach.empty { cursor:default; opacity:0.5; }
+  .iq-fach-no { width:22px; height:22px; border-radius:6px; color:#1a2620; font-weight:700;
+    font-family:'JetBrains Mono',monospace; font-size:13px; display:flex; align-items:center; justify-content:center; flex:none; }
+  .iq-fach-track { flex:1; height:16px; background:rgba(120,120,120,0.16); border-radius:8px; overflow:hidden; }
+  .iq-fach-fill { height:100%; border-radius:8px; transition:width 0.4s ease; min-width:0; }
+  .iq-fach-cnt { font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:var(--bark);
+    min-width:42px; text-align:right; }
+  .iq-fachfilter { margin-top:9px; padding-top:9px; border-top:1px solid var(--line);
+    font-family:'Work Sans',sans-serif; font-size:13px; color:var(--ink-soft); display:flex; align-items:center;
+    gap:8px; flex-wrap:wrap; }
+  .iq-fachall { font-family:'JetBrains Mono',monospace; font-size:11px; padding:4px 10px; border-radius:20px;
+    border:1.5px solid var(--line); background:var(--paper); color:var(--bark); cursor:pointer; font-weight:600; }
+  .iq-fachhint { margin-top:8px; font-family:'Work Sans',sans-serif; font-size:12px; color:var(--ink-soft); opacity:0.8; }
+  .iq-cardbox { font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:#1a2620;
+    padding:3px 10px; border-radius:20px; }
+  .iq-move { text-align:center; font-family:'Work Sans',sans-serif; font-weight:700; font-size:15px;
+    padding:8px; margin:10px 0 4px; border-radius:10px; animation:imgin 0.25s ease-out; }
+  .iq-move.up { color:#2f8a2a; background:rgba(87,201,74,0.14); }
+  .iq-move.down { color:#c0332f; background:rgba(229,72,77,0.13); }
   .iq-scopebar button {
     font-family:'JetBrains Mono',monospace; font-size:11.5px; letter-spacing:0.3px;
     padding:8px 13px; border:1px solid var(--line-strong); background:var(--paper-2);
@@ -710,7 +743,7 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
 (function(){
   "use strict";
   const STORAGE_KEY = "feldbuch_v3";
-  let store = { known:{}, star:{}, hard:{}, theme:"dark", notes:{}, cmp:["","",""] };
+  let store = { known:{}, star:{}, hard:{}, theme:"dark", notes:{}, cmp:["","",""], box:{}, leitner:true };
   try { store = Object.assign(store, JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}); } catch(e){}
   function save(){ try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); } catch(e){} }
 
@@ -1121,6 +1154,93 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
   }
   let iqScope = "all";
   let iqCurrent = null; // current correct answer name
+  let iqBoxFilter = null; // null = alle Fächer; 1–4 = nur dieses Fach üben
+
+  // ---------- Leitner-Karteikasten (Spaced Repetition) ----------
+  // Jede Karte (Vogel) steckt in einem Fach 1–4:
+  //   1 = rot (neu / oft falsch), 2 = orange, 3 = gelb, 4 = grün (sitzt).
+  // Richtig  → ein Fach hoch (max 4).  Falsch → zurück in Fach 1 (rot).
+  const IQ_BOXES = [
+    { n:1, label:"Neu",     color:"#e5484d" },  // rot
+    { n:2, label:"Unsicher",color:"#f2820c" },  // orange
+    { n:3, label:"Fast",    color:"#f5d020" },  // gelb
+    { n:4, label:"Sitzt",   color:"#57c94a" },  // grün
+  ];
+  // Aus welchem Fach wird wie oft gezogen? Rot am häufigsten, grün am seltensten.
+  const IQ_BOX_WEIGHT = { 1:8, 2:4, 3:2, 4:1 };
+
+  function iqBoxOf(name){ const b = store.box[name]; return (b>=1 && b<=4) ? b : 1; }
+  function iqSetBox(name, n){ store.box[name] = Math.max(1, Math.min(4, n)); }
+
+  // Count how many cards of the current pool sit in each box.
+  function iqBoxCounts(pool){
+    const c = {1:0,2:0,3:0,4:0};
+    pool.forEach(n => { c[iqBoxOf(n)]++; });
+    return c;
+  }
+
+  // Weighted pick: prefer cards in lower (redder) boxes so hard ones come up more.
+  function iqPickTarget(pool){
+    if(!store.leitner) return pool[Math.floor(Math.random()*pool.length)];
+    const bag = [];
+    pool.forEach(n => { const w = IQ_BOX_WEIGHT[iqBoxOf(n)] || 1; for(let i=0;i<w;i++) bag.push(n); });
+    if(!bag.length) return pool[Math.floor(Math.random()*pool.length)];
+    // avoid repeating the exact same card twice in a row when possible
+    let pick = bag[Math.floor(Math.random()*bag.length)];
+    if(pool.length > 1 && pick === iqCurrent){
+      const alt = bag.filter(n => n !== iqCurrent);
+      if(alt.length) pick = alt[Math.floor(Math.random()*alt.length)];
+    }
+    return pick;
+  }
+
+  // The coloured "Fächer" bar (like a Leitner box). Shows count per box.
+  // Jedes Fach ist anklickbar → dann werden nur Karten aus diesem Fach geübt.
+  function iqFachBar(pool){
+    const counts = iqBoxCounts(pool);
+    const total = pool.length || 1;
+    let h = '<div class="iq-fachwrap">';
+    h += '<div class="iq-fachhead"><span>📚 Karteikasten</span>'
+       + '<button class="iq-leitner-toggle' + (store.leitner?" on":"") + '" id="iqLeitnerToggle">'
+       + (store.leitner ? "Lernmodus: an" : "Lernmodus: aus") + '</button></div>';
+    IQ_BOXES.forEach(b => {
+      const cnt = counts[b.n];
+      const pct = Math.round((cnt/total)*100);
+      const active = (iqBoxFilter === b.n);
+      const empty = (cnt === 0);
+      h += '<button class="iq-fach' + (active?" active":"") + (empty?" empty":"") + '" data-box="' + b.n + '"'
+         + (empty?' disabled':'') + ' title="Nur Fach ' + b.n + ' üben">'
+         + '<div class="iq-fach-no" style="background:' + b.color + '">' + b.n + '</div>'
+         + '<div class="iq-fach-track"><div class="iq-fach-fill" style="width:' + pct + '%;background:' + b.color + '"></div></div>'
+         + '<div class="iq-fach-cnt">(' + cnt + ')</div>'
+         + '</button>';
+    });
+    if(iqBoxFilter !== null){
+      const bi = IQ_BOXES[iqBoxFilter-1];
+      h += '<div class="iq-fachfilter">Du übst gerade nur <b style="color:' + bi.color + '">Fach ' + iqBoxFilter + ' · ' + bi.label + '</b>'
+         + ' <button class="iq-fachall" id="iqFachAll">← alle Fächer</button></div>';
+    } else {
+      h += '<div class="iq-fachhint">Tipp auf ein Fach, um gezielt nur diese Karten zu üben.</div>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  // Wire clicks on the Fächer bar (called after every render/replace of the bar).
+  function wireFachBar(){
+    quizView.querySelectorAll(".iq-fach[data-box]").forEach(el => {
+      el.addEventListener("click", () => {
+        if(el.disabled) return;
+        const n = parseInt(el.dataset.box, 10);
+        iqBoxFilter = (iqBoxFilter === n) ? null : n;  // nochmal tippen = wieder alle
+        renderQuiz();
+      });
+    });
+    const allBtn = document.getElementById("iqFachAll");
+    if(allBtn) allBtn.addEventListener("click", () => { iqBoxFilter = null; renderQuiz(); });
+    const lt = document.getElementById("iqLeitnerToggle");
+    if(lt) lt.addEventListener("click", () => { store.leitner = !store.leitner; save(); renderQuiz(); });
+  }
 
   function iqPool(){
     if(iqScope === "all") return iqAllBirds();
@@ -1137,15 +1257,32 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
     });
     bar += '</div>';
 
-    const pool = iqPool();
+    const pool = iqPool();  // volle Auswahl (für die Fächer-Anzeige)
     if(pool.length < 1){
       quizView.innerHTML = bar + '<div class="empty">Für diese Auswahl gibt es zu wenige Bilder. Wähl oben eine andere Gruppe.</div>';
       wireScopeBar();
       return;
     }
 
-    // Pick the target (the bird whose photo is shown) from the chosen scope.
-    iqCurrent = pool[Math.floor(Math.random()*pool.length)];
+    // Fächer-Anzeige (Leitner-Karteikasten) — zeigt immer alle Fächer der vollen Auswahl.
+    const fachBar = iqFachBar(pool);
+
+    // Wenn ein Fach angetippt ist, nur aus diesem Fach ziehen.
+    let drawPool = pool;
+    if(iqBoxFilter !== null){
+      drawPool = pool.filter(n => iqBoxOf(n) === iqBoxFilter);
+      if(drawPool.length < 1){
+        // Fach ist leer geworden → zurück zu allen Fächern
+        iqBoxFilter = null;
+        drawPool = pool;
+      }
+    }
+
+    // Pick the target (the bird whose photo is shown).
+    // Im Lernmodus kommen rote/orange Karten häufiger dran als grüne.
+    iqCurrent = iqPickTarget(drawPool);
+    const curBox = iqBoxOf(iqCurrent);
+    const curBoxInfo = IQ_BOXES[curBox-1];
     // Distractors are drawn from ALL birds that have an image, but preferring the same
     // look-alike group as the target (ducks with ducks, raptors with raptors, …).
     const allWithImg = iqAllBirds().filter(n => WIKI_MAP[n]);
@@ -1153,7 +1290,9 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
     const options = shuffle([iqCurrent, ...wrongs]);
 
     quizView.innerHTML = bar
-      + '<div class="cardmeta"><span>Welcher Vogel ist das?</span></div>'
+      + fachBar
+      + '<div class="cardmeta"><span>Welcher Vogel ist das?</span>'
+      + '<span class="iq-cardbox" style="background:' + curBoxInfo.color + '">Fach ' + curBox + ' · ' + curBoxInfo.label + '</span></div>'
       + '<div class="iq-photo" id="iqPhoto"><div class="iq-loading"><div class="iq-spinner"></div>Bild wird geladen …</div></div>'
       + '<div class="iq-prompt">Ordne den richtigen Namen zu:</div>'
       + '<div class="iq-options" id="iqOptions">'
@@ -1163,6 +1302,7 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
       + '<button class="btn-primary" id="nextQuizBtn" style="display:none">Weiter →</button></div>';
 
     wireScopeBar();
+    wireFachBar();
 
     // Load the image for the correct answer
     const photo = document.getElementById("iqPhoto");
@@ -1197,13 +1337,33 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
         const chosen = btn.dataset.name;
         const isRight = chosen === iqCurrent;
         quizScore.total++;
-        if(isRight){ quizScore.correct++; btn.classList.add("correct"); }
-        else {
+        const oldBox = iqBoxOf(iqCurrent);
+        let newBox = oldBox;
+        if(isRight){
+          quizScore.correct++; btn.classList.add("correct");
+          newBox = Math.min(4, oldBox + 1);   // ein Fach hoch
+        } else {
           btn.classList.add("wrong");
           quizView.querySelectorAll(".iq-opt").forEach(b => { if(b.dataset.name === iqCurrent) b.classList.add("correct"); });
+          newBox = 1;                          // zurück nach rot
         }
+        iqSetBox(iqCurrent, newBox);
         save();
         quizView.querySelector(".quiz-score").textContent = "Richtig: " + quizScore.correct + " / " + quizScore.total;
+        // Fach-Wechsel anzeigen
+        const moveMsg = document.createElement("div");
+        moveMsg.className = "iq-move " + (isRight ? "up" : "down");
+        if(isRight && newBox > oldBox) moveMsg.textContent = "✓ Fach " + oldBox + " → " + newBox + (newBox===4 ? " · sitzt! 🟢" : "");
+        else if(isRight) moveMsg.textContent = "✓ Bleibt in Fach 4 · sitzt! 🟢";
+        else moveMsg.textContent = "✗ Zurück in Fach 1 🔴";
+        const footer = quizView.querySelector(".quiz-footer");
+        if(footer) footer.parentNode.insertBefore(moveMsg, footer);
+        // live-update the Fächer-Balken
+        const fresh = iqFachBar(iqPool());
+        const oldBar = quizView.querySelector(".iq-fachwrap");
+        if(oldBar){ const tmp = document.createElement("div"); tmp.innerHTML = fresh; oldBar.replaceWith(tmp.firstChild);
+          wireFachBar();
+        }
         document.getElementById("nextQuizBtn").style.display = "inline-block";
       });
     });
@@ -1215,6 +1375,7 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
       b.addEventListener("click", () => {
         if(b.dataset.scope === iqScope) return;
         iqScope = b.dataset.scope;
+        iqBoxFilter = null;   // beim Wechsel der Gruppe wieder alle Fächer
         renderQuiz();
       });
     });
@@ -2599,8 +2760,8 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
 
   document.getElementById("shuffleBtn").addEventListener("click", () => { shuffle(deck); idx=0; flipped=false; render(); });
   document.getElementById("resetBtn").addEventListener("click", () => {
-    if(confirm("Deinen gespeicherten Lernfortschritt (gelernt, gemerkt, schwierig, Notizen) wirklich zurücksetzen?")){
-      store.known={}; store.star={}; store.hard={}; store.notes={}; save(); updateStats();
+    if(confirm("Deinen gespeicherten Lernfortschritt (gelernt, gemerkt, schwierig, Notizen und Bilderquiz-Karteikasten) wirklich zurücksetzen?")){
+      store.known={}; store.star={}; store.hard={}; store.notes={}; store.box={}; save(); updateStats();
       quizScore={correct:0,total:0}; onFilterChange();
     }
   });
