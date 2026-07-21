@@ -523,8 +523,17 @@
 
   /* ---------- Mindmaps ---------- */
   .mm-wrap { margin-bottom: 8px; }
-  .mm-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--line); border-radius:12px; background: var(--paper-2); }
-  .mm-scroll svg { display:block; }
+  .mm-viewport { position:relative; overflow:hidden; border:1px solid var(--line); border-radius:12px;
+    background: var(--paper-2); height: min(70vh, 560px); touch-action:none; cursor:grab; }
+  .mm-viewport.grabbing { cursor:grabbing; }
+  .mm-stage { position:absolute; top:0; left:0; width:100%; transform-origin:0 0; will-change:transform; }
+  .mm-stage svg { display:block; width:100%; height:auto; }
+  .mm-zoom { position:absolute; right:10px; bottom:10px; display:flex; flex-direction:column; gap:6px; z-index:5; }
+  .mm-zoom button { width:38px; height:38px; border-radius:9px; border:1px solid var(--line);
+    background: var(--paper); color: var(--bark); font-size:20px; font-weight:600; cursor:pointer;
+    box-shadow:0 2px 6px rgba(0,0,0,0.12); display:flex; align-items:center; justify-content:center; line-height:1; }
+  .mm-zoom button:hover { background: var(--paper-2); }
+  .mm-zoom button:active { transform: scale(0.94); }
   .mm-note { font-size:12px; color:var(--ink-soft); margin-top:8px; line-height:1.5; }
   .mm-legend { display:flex; flex-wrap:wrap; gap:10px 16px; margin:10px 0 4px; font-size:11.5px; color:var(--ink-soft); }
   .mm-legend span { display:inline-flex; align-items:center; gap:5px; }
@@ -592,7 +601,6 @@
     <div class="modebar" role="tablist">
       <button id="modeCardsBtn" class="active">Lernkarten</button>
       <button id="modeQuizBtn">Bilderquiz</button>
-      <button id="modeExamBtn">Prüfung</button>
       <button id="modeSteckBtn">Steckbrief</button>
       <button id="modeMindmapBtn">Mindmap</button>
       <button id="modeTableBtn">Tabellen</button>
@@ -635,7 +643,6 @@
 
     <div id="cardsView"></div>
     <div id="quizView" style="display:none"></div>
-    <div id="examView" style="display:none"></div>
     <div id="steckView" style="display:none"></div>
     <div id="mindmapView" style="display:none"></div>
     <div id="tableView" style="display:none"></div>
@@ -1563,6 +1570,45 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
       });
     }
   }
+  // For species where the MALE looks clearly different (antlers, drake plumage, etc.)
+  // we bias the image toward a male, full-body photo via a Wikimedia Commons search.
+  // Where male & female look the same (most raptors, owls, hares) we leave it — the
+  // normal article lead image already shows the whole animal.
+  const WIKI_MALE_SEARCH = {
+    "Rehwild": "Capreolus capreolus buck male",
+    "Rotwild": "Cervus elaphus stag male",
+    "Damwild": "Dama dama buck male",
+    "Sikawild": "Cervus nippon stag male",
+    "Gamswild": "Rupicapra rupicapra male",
+    "Muffelwild": "Ovis musimon ram male",
+    "Steinwild": "Capra ibex male",
+    "Schwarzwild": "Sus scrofa boar male",
+    "Auerwild": "Tetrao urogallus male",
+    "Birkwild": "Lyrurus tetrix male",
+    "Haselwild": "Tetrastes bonasia male",
+    "Rebhuhn": "Perdix perdix male",
+    "Jagdfasan": "Phasianus colchicus male",
+    "Alpenschneehuhn": "Lagopus muta male",
+    "Stockente": "Anas platyrhynchos drake male",
+    "Krickente": "Anas crecca drake male",
+    "Knäckente": "Spatula querquedula drake male",
+    "Schnatterente": "Mareca strepera drake male",
+    "Spießente": "Anas acuta drake male",
+    "Löffelente": "Spatula clypeata drake male",
+    "Pfeifente": "Mareca penelope drake male",
+    "Kolbenente": "Netta rufina drake male",
+    "Reiherente": "Aythya fuligula drake male",
+    "Tafelente": "Aythya ferina drake male",
+    "Moorente": "Aythya nyroca drake male",
+    "Schellente": "Bucephala clangula drake male",
+    "Kornweihe": "Circus cyaneus male",
+    "Wiesenweihe": "Circus pygargus male",
+    "Rohrweihe": "Circus aeruginosus male",
+    "Turmfalke": "Falco tinnunculus male",
+    "Merlin": "Falco columbarius male",
+    "Fuchs": "Vulpes vulpes",
+  };
+
   async function _doFetch(name){
     const title = WIKI_MAP[name];
 
@@ -1591,10 +1637,36 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
       }
       return null;
     }
+    // Search Wikimedia Commons image files for a male, full-body photo.
+    async function tryCommonsMale(q){
+      const url = "https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*"
+                + "&generator=search&gsrsearch=" + encodeURIComponent(q)
+                + "&gsrnamespace=6&gsrlimit=8"       // namespace 6 = File
+                + "&prop=imageinfo&iiprop=url&iiurlwidth=640";
+      const r = await fetch(url);
+      if(!r.ok) throw new Error("http " + r.status);
+      const j = await r.json();
+      const pages = j && j.query && j.query.pages;
+      if(!pages) return null;
+      // prefer files that look like a photo (jpg) and avoid obvious non-animal files
+      const cands = Object.values(pages)
+        .sort((a,b) => (a.index||99) - (b.index||99))
+        .map(p => p.imageinfo && p.imageinfo[0])
+        .filter(Boolean)
+        .filter(ii => /\.(jpe?g)$/i.test(ii.url || ""))
+        .filter(ii => !/(skull|schädel|track|spur|antler only|geweih|distribution|range|map|karte|diagram)/i.test(ii.url || ""));
+      if(cands.length){ return cands[0].thumburl || cands[0].url; }
+      return null;
+    }
 
     try {
-      // Find a remote thumbnail URL (direct title → search → search+"Vogel")
-      let remote = await tryTitle(title);
+      let remote = null;
+      // 1) If this species has a distinctive male, try a Commons male search first.
+      if(WIKI_MALE_SEARCH[name]){
+        try { remote = await tryCommonsMale(WIKI_MALE_SEARCH[name]); } catch(e){}
+      }
+      // 2) Normal article lead image (already a full-body shot for most species).
+      if(!remote) remote = await tryTitle(title);
       if(!remote) remote = await trySearch(title);
       if(!remote && name !== title) remote = await trySearch(name + " Vogel");
       if(!remote){ _imgMem[name] = null; return null; }
@@ -1929,8 +2001,15 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
       + '<div style="display:flex;gap:8px"><button class="ghost" id="mmSteckBtn">📋 Steckbrief</button>'
       + '<button class="ghost" id="mmBackBtn">← alle Mindmaps</button></div></div>';
     if(svg){
-      h += '<div class="mm-wrap"><div class="mm-scroll">' + svg + '</div>'
-         + '<div class="mm-note">Der Kern ist das Tier, die Äste sind die Rubriken deiner Notizen. Zum Vertiefen den vollständigen <b>Steckbrief</b> oder <b>Lesen</b>-Modus nutzen.</div></div>';
+      h += '<div class="mm-wrap">'
+         + '<div class="mm-viewport" id="mmViewport">'
+         + '<div class="mm-stage" id="mmStage">' + svg + '</div>'
+         + '<div class="mm-zoom">'
+         + '<button id="mmZoomOut" aria-label="Verkleinern">−</button>'
+         + '<button id="mmZoomReset" aria-label="Zurücksetzen">⟳</button>'
+         + '<button id="mmZoomIn" aria-label="Vergrößern">+</button>'
+         + '</div></div>'
+         + '<div class="mm-note">📱 Mit zwei Fingern zoomen, mit einem Finger schieben. Am PC: Mausrad zum Zoomen, ziehen zum Verschieben.</div></div>';
     } else {
       h += '<div class="empty">Für „' + esc(name) + '" gibt es zu wenige Notizen für eine Mindmap.</div>';
     }
@@ -1938,6 +2017,96 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
     document.getElementById("mmBackBtn").addEventListener("click", () => { currentMindmap=null; renderMindmap(); });
     const sb = document.getElementById("mmSteckBtn");
     if(sb) sb.addEventListener("click", () => { currentSteckAnimal = name; setMode("steck"); });
+    if(svg) setupMindmapZoom();
+  }
+
+  // Pinch-zoom + drag-pan for the mindmap (mobile-friendly)
+  function setupMindmapZoom(){
+    const vp = document.getElementById("mmViewport");
+    const stage = document.getElementById("mmStage");
+    if(!vp || !stage) return;
+    let scale = 1, tx = 0, ty = 0;
+    const MIN = 0.4, MAX = 4;
+    function apply(){ stage.style.transform = "translate(" + tx + "px," + ty + "px) scale(" + scale + ")"; }
+    function clampScale(s){ return Math.max(MIN, Math.min(MAX, s)); }
+
+    // --- Wheel zoom (desktop), zoom toward cursor ---
+    vp.addEventListener("wheel", e => {
+      e.preventDefault();
+      const rect = vp.getBoundingClientRect();
+      const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+      const prev = scale;
+      scale = clampScale(scale * (e.deltaY < 0 ? 1.12 : 0.89));
+      const k = scale / prev;
+      tx = cx - k * (cx - tx);
+      ty = cy - k * (cy - ty);
+      apply();
+    }, { passive:false });
+
+    // --- Mouse drag pan (desktop) ---
+    let dragging = false, lastX = 0, lastY = 0;
+    vp.addEventListener("mousedown", e => { dragging = true; lastX = e.clientX; lastY = e.clientY; vp.classList.add("grabbing"); });
+    window.addEventListener("mousemove", e => {
+      if(!dragging) return;
+      tx += e.clientX - lastX; ty += e.clientY - lastY;
+      lastX = e.clientX; lastY = e.clientY; apply();
+    });
+    window.addEventListener("mouseup", () => { dragging = false; vp.classList.remove("grabbing"); });
+
+    // --- Touch: one finger pan, two finger pinch ---
+    let touchMode = null, startDist = 0, startScale = 1, startMid = {x:0,y:0}, startTx = 0, startTy = 0, startTouch = {x:0,y:0};
+    function dist(t1, t2){ return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY); }
+    function mid(t1, t2, rect){ return { x:(t1.clientX + t2.clientX)/2 - rect.left, y:(t1.clientY + t2.clientY)/2 - rect.top }; }
+
+    vp.addEventListener("touchstart", e => {
+      const rect = vp.getBoundingClientRect();
+      if(e.touches.length === 1){
+        touchMode = "pan";
+        startTouch = { x:e.touches[0].clientX, y:e.touches[0].clientY };
+        startTx = tx; startTy = ty;
+      } else if(e.touches.length === 2){
+        touchMode = "pinch";
+        startDist = dist(e.touches[0], e.touches[1]);
+        startScale = scale;
+        startMid = mid(e.touches[0], e.touches[1], rect);
+        startTx = tx; startTy = ty;
+      }
+    }, { passive:false });
+
+    vp.addEventListener("touchmove", e => {
+      e.preventDefault();
+      if(touchMode === "pan" && e.touches.length === 1){
+        tx = startTx + (e.touches[0].clientX - startTouch.x);
+        ty = startTy + (e.touches[0].clientY - startTouch.y);
+        apply();
+      } else if(touchMode === "pinch" && e.touches.length === 2){
+        const rect = vp.getBoundingClientRect();
+        const d = dist(e.touches[0], e.touches[1]);
+        const prev = scale;
+        scale = clampScale(startScale * (d / startDist));
+        // zoom toward the pinch midpoint
+        const k = scale / prev;
+        tx = startMid.x - (scale/startScale) * (startMid.x - startTx);
+        ty = startMid.y - (scale/startScale) * (startMid.y - startTy);
+        apply();
+      }
+    }, { passive:false });
+
+    vp.addEventListener("touchend", e => { if(e.touches.length === 0) touchMode = null; });
+
+    // --- Buttons ---
+    function zoomBy(f){
+      const rect = vp.getBoundingClientRect();
+      const cx = rect.width/2, cy = rect.height/2;
+      const prev = scale; scale = clampScale(scale * f);
+      const k = scale / prev;
+      tx = cx - k * (cx - tx); ty = cy - k * (cy - ty); apply();
+    }
+    const zi = document.getElementById("mmZoomIn"); if(zi) zi.addEventListener("click", () => zoomBy(1.25));
+    const zo = document.getElementById("mmZoomOut"); if(zo) zo.addEventListener("click", () => zoomBy(0.8));
+    const zr = document.getElementById("mmZoomReset"); if(zr) zr.addEventListener("click", () => { scale = 1; tx = 0; ty = 0; apply(); });
+
+    apply();
   }
 
 
@@ -2321,15 +2490,15 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
     // close any open read modal
     const rm = document.getElementById("readModal"); if(rm) rm.remove();
     if(m !== "read") readGroup = null;
-    ["Cards","Quiz","Exam","Steck","Mindmap","Table","Read","Compare","Listen","Browse"].forEach(k => {
+    ["Cards","Quiz","Steck","Mindmap","Table","Read","Compare","Listen","Browse"].forEach(k => {
       const b = document.getElementById("mode"+k+"Btn");
       if(b) b.classList.toggle("active", m===k.toLowerCase());
     });
-    ["cards","quiz","exam","steck","mindmap","table","read","compare","listen","browse"].forEach(v => {
+    ["cards","quiz","steck","mindmap","table","read","compare","listen","browse"].forEach(v => {
       document.getElementById(v+"View").style.display = v===m?"":"none";
     });
     // controls visibility — the Bilderquiz ("quiz") has its own group picker, so hide the card filters there
-    const learnMode = (m==="cards"||m==="exam");
+    const learnMode = (m==="cards");
     const noControls = (m==="browse"||m==="steck"||m==="read"||m==="compare"||m==="quiz"||m==="mindmap"||m==="table");
     document.getElementById("shuffleBtn").style.display = (m==="cards")?"":"none";
     document.getElementById("starFilterBtn").style.display = learnMode?"":"none";
@@ -2350,7 +2519,6 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
   function render(){
     if(mode==="cards") renderCards();
     else if(mode==="quiz") renderQuiz();
-    else if(mode==="exam") renderExam();
     else if(mode==="steck") renderSteck();
     else if(mode==="mindmap") renderMindmap();
     else if(mode==="table") renderTable();
@@ -2364,7 +2532,6 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
   // events
   document.getElementById("modeCardsBtn").addEventListener("click", ()=>setMode("cards"));
   document.getElementById("modeQuizBtn").addEventListener("click", ()=>setMode("quiz"));
-  document.getElementById("modeExamBtn").addEventListener("click", ()=>setMode("exam"));
   document.getElementById("modeSteckBtn").addEventListener("click", ()=>{ currentSteckAnimal=null; setMode("steck"); });
   document.getElementById("modeMindmapBtn").addEventListener("click", ()=>{ currentMindmap=null; setMode("mindmap"); });
   document.getElementById("modeTableBtn").addEventListener("click", ()=>setMode("table"));
