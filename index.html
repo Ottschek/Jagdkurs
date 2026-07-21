@@ -498,6 +498,38 @@
   table.cmp thead th { background: rgba(74,54,38,0.08); font-family:'Fraunces',serif; font-size:15px; color:var(--bark); }
   table.cmp tbody th { width:22%; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--bark); font-weight:600; letter-spacing:0.5px; background: rgba(74,54,38,0.03); }
 
+  /* ---------- Lebensdaten-Tabellen (Vergleich) ---------- */
+  .tbl-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border:1px solid var(--line); border-radius:10px; margin-bottom: 26px; }
+  table.data { border-collapse: collapse; width:100%; min-width: 680px; font-size: 13px; background: var(--paper-2); }
+  table.data caption { caption-side: top; text-align:left; font-family:'JetBrains Mono',monospace; font-size:11.5px;
+    letter-spacing:1px; text-transform:uppercase; color:var(--paper); background:var(--bark);
+    padding:9px 13px; font-weight:600; }
+  table.data th, table.data td { padding:8px 11px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; line-height:1.4; white-space:nowrap; }
+  table.data thead th { position:sticky; top:0; background:rgba(74,54,38,0.10); font-family:'JetBrains Mono',monospace;
+    font-size:10.5px; letter-spacing:0.4px; color:var(--bark); font-weight:600; text-transform:uppercase; white-space:normal; min-width:74px; }
+  table.data thead th:first-child, table.data td:first-child { position:sticky; left:0; background:var(--paper-2); z-index:1; }
+  table.data thead th:first-child { z-index:2; background:#efe6d6; }
+  html[data-theme="dark"] table.data thead th:first-child { background:#3a2f26; }
+  table.data tbody tr:nth-child(even) td { background: rgba(74,54,38,0.035); }
+  table.data tbody tr:nth-child(even) td:first-child { background:#f2ebdd; }
+  html[data-theme="dark"] table.data tbody tr:nth-child(even) td:first-child { background:#33291f; }
+  table.data td.animal { font-family:'Fraunces',serif; font-size:14px; font-weight:500; color:var(--bark); white-space:normal; min-width:120px; }
+  table.data td.val { color: var(--ink); }
+  table.data td.dash { color: var(--ink-soft); }
+  .tbl-hint { font-size:12px; color:var(--ink-soft); margin: -14px 0 20px; line-height:1.5; }
+  .tbl-hint b { color: var(--bark); }
+
+  /* single-animal steckbrief data table reuses .prof */
+
+  /* ---------- Mindmaps ---------- */
+  .mm-wrap { margin-bottom: 8px; }
+  .mm-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--line); border-radius:12px; background: var(--paper-2); }
+  .mm-scroll svg { display:block; }
+  .mm-note { font-size:12px; color:var(--ink-soft); margin-top:8px; line-height:1.5; }
+  .mm-legend { display:flex; flex-wrap:wrap; gap:10px 16px; margin:10px 0 4px; font-size:11.5px; color:var(--ink-soft); }
+  .mm-legend span { display:inline-flex; align-items:center; gap:5px; }
+  .mm-legend i { width:11px; height:11px; border-radius:3px; display:inline-block; }
+
   .empty { text-align: center; color: var(--ink-soft); font-size: 15px; padding: 46px 20px; line-height: 1.6; }
   .empty b { color: var(--bark); }
 
@@ -562,6 +594,8 @@
       <button id="modeQuizBtn">Bilderquiz</button>
       <button id="modeExamBtn">Prüfung</button>
       <button id="modeSteckBtn">Steckbrief</button>
+      <button id="modeMindmapBtn">Mindmap</button>
+      <button id="modeTableBtn">Tabellen</button>
       <button id="modeReadBtn">Lesen</button>
       <button id="modeCompareBtn">Vergleich</button>
       <button id="modeListenBtn">Vorlesen</button>
@@ -603,6 +637,8 @@
     <div id="quizView" style="display:none"></div>
     <div id="examView" style="display:none"></div>
     <div id="steckView" style="display:none"></div>
+    <div id="mindmapView" style="display:none"></div>
+    <div id="tableView" style="display:none"></div>
     <div id="readView" style="display:none"></div>
     <div id="compareView" style="display:none"></div>
     <div id="listenView" style="display:none"></div>
@@ -679,6 +715,129 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
     if (HAARWILD.has(name)) return "Haarwild";
     if (GRUNDLAGEN.has(name)) return "Grundlagen";
     return "Federwild";
+  }
+
+  // ============================================================
+  //   FAKTEN-EXTRAKTOR  (zieht Tabellenwerte aus den Stichpunkten
+  //   der Tiere — nutzt NUR deine eigenen Daten, erfindet nichts)
+  // ============================================================
+  function _allBullets(name){
+    const a = ANIMALS.find(x => x.name === name);
+    if(!a) return [];
+    let bs = [];
+    (a.sections||[]).forEach(s => bs = bs.concat(s.bullets||[]));
+    // include the group's sub-animals' bullets? no — keep per-animal
+    return bs;
+  }
+  // find the first bullet matching a regex, return a cleaned capture (or the whole match)
+  function _find(bullets, re, grp){
+    for(const b of bullets){
+      const m = b.match(re);
+      if(m) return (grp!=null ? m[grp] : m[0]).replace(/\s+/g,' ').trim();
+    }
+    return null;
+  }
+  function _clean(v){ return v==null ? "–" : v.replace(/^[:\s]+/,'').replace(/\s+/g,' ').trim(); }
+
+  // Extract a compact fact record for one animal from its bullet text.
+  function animalFacts(name){
+    const a = ANIMALS.find(x => x.name === name);
+    const b = _allBullets(name);
+    const secs = (a && a.sections) || [];
+    function secBullets(re){ const s = secs.find(x => re.test(x.heading)); return s ? s.bullets : []; }
+    function firstIn(bullets, re, grp){
+      for(const x of bullets){ const m = x.match(re); if(m) return (grp!=null?m[grp]:m[0]).replace(/\s+/g,' ').trim(); }
+      return null;
+    }
+    // strip trailing hint/notes and over-long tails
+    function tidy(v){
+      if(!v) return v;
+      v = v.replace(/\s*\*.*$/,'')                       // markdown hint note
+           .replace(/\s*\(recherchiert[^)]*\)/gi,'')     // research marker
+           .replace(/\s*Hinweis:.*$/i,'')
+           .replace(/\s+/g,' ').trim()
+           .replace(/[;,]\s*$/,'');
+      return v;
+    }
+    function shorten(v, n){ if(v && v.length>n){ v = v.slice(0,n-1).replace(/[\s,;.–-]+$/,'') + "…"; } return v; }
+
+    // --- Systematik ---
+    let systematik = firstIn(b, /(Ordnung[^|]*?(?:,?\s*(?:Unterordnung|Familie|Unterfamilie)[^|]*?)*)$/i, 1);
+    if(!systematik){
+      // fall back to bullets of a "Systematik"/"Einordnung" section
+      const sysBul = secBullets(/Systematik|Einordnung|Zuordnung/i);
+      const taxo = sysBul.filter(x => /(Ordnung|Familie|Unterfamilie|Hasentiere|Nagetiere|Hühnervögel|Paarhufer|Raufußhühner|Echte Hirsche|Hornträger|Trughirsch)/i.test(x));
+      systematik = (taxo[0] || sysBul[0] || null);
+    }
+    systematik = tidy(systematik);
+
+    const gewicht = tidy(firstIn(b, /Gewicht[^0-9]*([0-9][0-9,.\-–\s]*(?:kg|g)\b[^|,;]*)/i, 1)
+                 || firstIn(b, /([0-9][0-9,.\-–\s]*kg)\b/i, 1));
+
+    const spann = tidy(firstIn(b, /(?:Flügel)?[Ss]pannweite[^0-9]*([0-9][0-9,.\-–\s]*cm[^|,;]*)/i, 1));
+
+    // Gelege / Wurf — search the repro section first, then anywhere
+    const reproBul = secBullets(/Fortpflanzung|Rammelzeit|Rauschzeit|Ranz|Brunft|Trag|Setz|Frisch/i);
+    let gelege = firstIn(reproBul, /Gelege[:\s]*([0-9][0-9,.\-–\s]*Eier?[^|,;]*)/i, 1)
+              || firstIn(b, /Gelege[:\s]*([0-9][0-9,.\-–\s]*Eier?[^|,;]*)/i, 1)
+              || firstIn(b, /\b([0-9][0-9,.\-–\s]*Eier)\b/i, 1)
+              || firstIn(reproBul, /(?:wirft|wölft|frischt|setzt|geworfen|Geheck aus)[^0-9]*([0-9][0-9,.\-–\s]*(?:Junge|Jungdachse|Kitze|Welpen|Frischlinge|Lämmer|Jungmardern)[^|,;.]*)/i, 1)
+              || firstIn(reproBul, /\b([0-9]+--[0-9]+\s*Junge)\b/i, 1);
+    gelege = shorten(tidy(gelege), 34);
+
+    // Brutdauer / Tragzeit
+    let brutd = firstIn(b, /Brutdauer[:\s]*(?:ca\.?\s*)?([0-9][^|,;]*)/i, 1)
+             || firstIn(b, /Tragzeit[:\s]*(?:ca\.?\s*)?([0-9][^|,;]*)/i, 1)
+             || firstIn(b, /Brutzeit[^0-9]*([0-9][0-9,.\-–\s]*Tage[^|,;]*)/i, 1);
+    brutd = shorten(tidy(brutd), 34);
+
+    // Brut-/Balz-/Ranz-/Brunftzeit — ONLY from the repro section, must start with a month/season
+    const MONTHS = "(?:Jänner|Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember|Frühjahr|Frühling|Sommer|Herbst|Winter)";
+    let brutzeit = firstIn(reproBul, new RegExp("(?:Brutzeit|Balz|Ranzzeit|Ranz|Rammelzeit|Rauschzeit|Rausch|Brunft(?:zeit)?|Wurfzeit|Hauptranzzeit)[:\\s(„\"]*("+MONTHS+"[^|;]*?)(?:$|;|\\|)","i"), 1)
+              || firstIn(b, new RegExp("(?:Brutzeit|Balz|Ranzzeit|Rammelzeit|Rauschzeit|Brunft)[:\\s(„\"]*("+MONTHS+"[^|;]*?)(?:$|;|\\|)","i"), 1);
+    brutzeit = shorten(tidy(brutzeit), 34);
+
+    // Nahrung / Äsung
+    let nahrung = null;
+    const nBul = secBullets(/Nahrung|Äsung/i);
+    if(nBul.length) nahrung = nBul[0].replace(/^(Nahrung|Äsung)[:\s]*/i,'');
+    if(!nahrung){
+      nahrung = firstIn(b, /(Allesfresser[^|;]*|Reiner Pflanzenfresser[^|;]*)/i, 1)
+             || (b.find(x => /(Mäuse|Fische|Insekten|Beeren|Wasserpflanzen|Samen|Aas|Frösche|Kleinsäuger|Getreide|Körner|Kräuter|Wurzeln|Vögel)/i.test(x)
+                            && !/Gelege|Brut|Spannweite|Gewicht|Ordnung|Familie|Tragzeit|Balz|Ranz/i.test(x)) || null);
+    }
+    nahrung = shorten(tidy(nahrung), 60);
+
+    const lebensweise = tidy(firstIn(b, /\b(Stand-?\s?\/?\s?Strich-?\s?\/?\s?Zug-?vogel|Standvogel|Zugvogel|Strichvogel|Teilzieher|Jahresvogel|Sommervogel|Wintergast|Durchzügler)\b/i, 0));
+
+    let lebensraum = null;
+    const lrBul = secBullets(/Lebensraum|Vorkommen|Verbreitung/i);
+    if(lrBul.length) lebensraum = lrBul[0].replace(/^(Lebensraum|Vorkommen|Verbreitung)[:\s]*/i,'');
+    lebensraum = shorten(tidy(lebensraum), 60);
+
+    const brutform = tidy(firstIn(b, /\b(Bodenbrüter|Baumbrüter|Höhlenbrüter|Fels(?:en)?brüter|Nischenbrüter|Schilfbrüter|Koloniebrüter|Baum- und Felsbrüter|Baum- oder Felsen?brüter)\b/i, 0));
+
+    // Schusszeit — dedicated section, cut hints
+    let schusszeit = null;
+    const szBul = secBullets(/Schusszeit/i);
+    if(szBul.length) schusszeit = szBul[0];
+    if(!schusszeit) schusszeit = firstIn(b, /(ganzjährig[^|;*]*|geschont[^|;*]*|geschützt[^|;*]*)/i, 0);
+    schusszeit = shorten(tidy(schusszeit), 44);
+
+    return {
+      name,
+      systematik: _clean(shorten(systematik, 60)),
+      gewicht: _clean(gewicht),
+      spannweite: _clean(spann),
+      gelege: _clean(gelege),
+      brutdauer: _clean(brutd),
+      brutzeit: _clean(brutzeit),
+      brutform: _clean(brutform),
+      lebensweise: _clean(lebensweise),
+      lebensraum: _clean(lebensraum),
+      nahrung: _clean(nahrung),
+      schusszeit: _clean(schusszeit),
+    };
   }
 
   // ---------- category select (grouped) ----------
@@ -1574,6 +1733,214 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
   const _animalNames = new Set(ANIMALS.map(a => a.name));
   READ_CATEGORIES.forEach(cat => { cat.members = cat.members.filter(m => _animalNames.has(m)); });
 
+  // ============================================================
+  //   TABELLEN — Lebensdaten-Vergleich pro Gruppe  +  Einzel-Steckbrief
+  //   (nach dem Vorbild „Lebensdaten der Vögel" aus dem Kursbuch)
+  // ============================================================
+  const tableView = document.getElementById("tableView");
+  // Which columns to show. Birds get the full "Lebensdaten" set; mammals a fitting set.
+  const TBL_COLS_BIRD = [
+    ["systematik","Systematik"],
+    ["gewicht","Gewicht"],
+    ["spannweite","Spannweite"],
+    ["lebensweise","Zug/Stand"],
+    ["brutform","Brutform"],
+    ["brutzeit","Brut-/Balzzeit"],
+    ["brutdauer","Brutdauer"],
+    ["gelege","Gelege"],
+    ["nahrung","Nahrung"],
+    ["schusszeit","Schusszeit"],
+  ];
+  const TBL_COLS_MAMMAL = [
+    ["systematik","Systematik"],
+    ["gewicht","Gewicht"],
+    ["lebensraum","Lebensraum"],
+    ["brutzeit","Ranz/Brunft"],
+    ["gelege","Wurf/Gelege"],
+    ["nahrung","Nahrung"],
+    ["schusszeit","Schusszeit"],
+  ];
+
+  function _tableGroups(){
+    // Use READ_CATEGORIES but only real single animals (skip the "im Überblick" group containers & Grundlagen)
+    return READ_CATEGORIES
+      .filter(c => c.key !== "grundl")
+      .map(c => ({
+        name: c.name, icon: c.icon, key: c.key,
+        members: c.members.filter(n => animalKind(n) === "animal")
+      }))
+      .filter(c => c.members.length);
+  }
+
+  function renderTable(){
+    updateProgress();
+    const groups = _tableGroups();
+    let h = '<div class="cardmeta"><span>Lebensdaten-Tabellen</span></div>';
+    h += '<p class="tbl-hint">Alle Werte stammen aus <b>deinen eigenen Notizen</b> — leere Felder (–) bedeuten, dass dazu nichts in deinen Unterlagen stand. Tabellen lassen sich seitlich wischen.</p>';
+
+    groups.forEach(g => {
+      const isMammal = g.members.every(n => HAARWILD.has(n));
+      const cols = isMammal ? TBL_COLS_MAMMAL : TBL_COLS_BIRD;
+      h += '<div class="tbl-scroll"><table class="data"><caption>' + esc(g.icon + "  " + g.name) + '</caption>';
+      h += '<thead><tr><th>Art</th>' + cols.map(c => '<th>' + esc(c[1]) + '</th>').join("") + '</tr></thead><tbody>';
+      g.members.forEach(n => {
+        const f = animalFacts(n);
+        h += '<tr><td class="animal">' + esc(n) + '</td>'
+           + cols.map(c => {
+               const v = f[c[0]];
+               const dash = (!v || v === "–");
+               return '<td class="' + (dash?'dash':'val') + '">' + esc(dash ? "–" : v) + '</td>';
+             }).join("")
+           + '</tr>';
+      });
+      h += '</tbody></table></div>';
+    });
+
+    tableView.innerHTML = h;
+  }
+
+  // ============================================================
+  //   MINDMAP — pro Tier ein radiales SVG-Diagramm aus den Rubriken
+  // ============================================================
+  const mindmapView = document.getElementById("mindmapView");
+  let currentMindmap = null;
+  const mmAllNames = ANIMALS.filter(a => a.kind === "animal" || a.kind === "group").map(a => a.name);
+
+  // colour palette for branches
+  const MM_COLORS = ["#6e7f5e","#a6432b","#4a708b","#b07d3a","#7a5c8e","#4f8a6b","#a85f7a","#8a7a3a"];
+
+  function _wrapText(str, max){
+    const words = String(str).split(/\s+/);
+    const lines = []; let cur = "";
+    words.forEach(w => {
+      if((cur + " " + w).trim().length > max){ if(cur) lines.push(cur); cur = w; }
+      else cur = (cur + " " + w).trim();
+    });
+    if(cur) lines.push(cur);
+    return lines.slice(0,3); // max 3 lines per node
+  }
+
+  function buildMindmapSVG(name){
+    const a = ANIMALS.find(x => x.name === name);
+    if(!a) return "";
+    // Branches = section headings; leaves = first 1-2 short bullets each (kept concise)
+    let sections = (a.sections||[]).filter(s => s.bullets && s.bullets.length);
+    if(a.kind === "group"){
+      // for a group, branches are its sub-animals
+      sections = (a.sub_names||[]).map(sn => {
+        const sub = ANIMALS.find(x => x.name === sn);
+        const firstBullet = sub && sub.sections[0] && sub.sections[0].bullets[0] ? sub.sections[0].bullets[0] : "";
+        return { heading: sn, bullets: firstBullet ? [firstBullet] : [] };
+      });
+    }
+    const N = sections.length;
+    if(!N) return "";
+
+    const W = 900, cx = W/2;
+    const ringR = Math.max(210, 150 + N*12);
+    const H = ringR*2 + 240;
+    const cy = H/2;
+
+    let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '">';
+    // connectors first
+    const nodes = [];
+    for(let i=0;i<N;i++){
+      const ang = (-90 + i*(360/N)) * Math.PI/180;
+      const x = cx + Math.cos(ang)*ringR;
+      const y = cy + Math.sin(ang)*ringR;
+      nodes.push({x,y,ang,sec:sections[i],color:MM_COLORS[i%MM_COLORS.length]});
+    }
+    nodes.forEach(nd => {
+      svg += '<path d="M ' + cx + ' ' + cy + ' Q ' + ((cx+nd.x)/2) + ' ' + ((cy+nd.y)/2)
+           + ' ' + nd.x + ' ' + nd.y + '" fill="none" stroke="' + nd.color + '" stroke-width="2.5" opacity="0.55"/>';
+    });
+    // leaf boxes
+    nodes.forEach(nd => {
+      const headLines = _wrapText(nd.sec.heading, 22);
+      // up to 2 concise bullets
+      const leafBul = (nd.sec.bullets||[]).slice(0,2).map(b => {
+        // trim overly long bullets, drop trailing hint notes
+        let t = b.replace(/\s*\*.*$/,'').replace(/\s*\(recherchiert[^)]*\)/,'').trim();
+        if(t.length > 46) t = t.slice(0,44) + "…";
+        return t;
+      }).filter(Boolean);
+      const allLines = headLines.concat(leafBul.length ? ["— " + leafBul.join("  ·  ").slice(0,60)] : []);
+      const boxW = 190, lineH = 15;
+      const boxH = 14 + allLines.length*lineH;
+      let bx = nd.x - boxW/2;
+      let by = nd.y - boxH/2;
+      // keep inside canvas
+      bx = Math.max(6, Math.min(W-boxW-6, bx));
+      by = Math.max(6, Math.min(H-boxH-6, by));
+      svg += '<rect x="' + bx + '" y="' + by + '" width="' + boxW + '" height="' + boxH + '" rx="9" '
+           + 'fill="var(--paper)" stroke="' + nd.color + '" stroke-width="2"/>';
+      allLines.forEach((ln, k) => {
+        const isHead = k < headLines.length;
+        svg += '<text x="' + (bx+boxW/2) + '" y="' + (by+16+k*lineH) + '" text-anchor="middle" '
+             + 'font-family="' + (isHead ? "'Work Sans',sans-serif" : "'JetBrains Mono',monospace") + '" '
+             + 'font-size="' + (isHead ? 12.5 : 10) + '" '
+             + 'font-weight="' + (isHead ? 600 : 400) + '" '
+             + 'fill="' + (isHead ? "var(--ink)" : "var(--ink-soft)") + '">' + esc(ln) + '</text>';
+      });
+    });
+    // center node
+    const cLines = _wrapText(name, 16);
+    const cW = 150, cH = 30 + cLines.length*18;
+    svg += '<rect x="' + (cx-cW/2) + '" y="' + (cy-cH/2) + '" width="' + cW + '" height="' + cH + '" rx="14" fill="var(--bark)"/>';
+    cLines.forEach((ln,k) => {
+      svg += '<text x="' + cx + '" y="' + (cy - cH/2 + 22 + k*18) + '" text-anchor="middle" '
+           + 'font-family="\'Fraunces\',serif" font-size="16" font-weight="600" fill="var(--paper)">' + esc(ln) + '</text>';
+    });
+    svg += '</svg>';
+    return svg;
+  }
+
+  function renderMindmap(){
+    updateProgress();
+    if(!currentMindmap){
+      // picker grid (like steckbrief)
+      let h = '<div class="cardmeta"><span>Mindmaps — Tier wählen</span></div>'
+        + '<div class="field" style="margin:6px 0 18px"><input class="picker" id="mmPicker" list="mmDatalist" placeholder="Tier suchen — z. B. Fuchs, Uhu, Stockente …" style="padding-left:12px"></div>'
+        + '<datalist id="mmDatalist">' + mmAllNames.map(n => '<option value="' + esc(n) + '">').join("") + '</datalist>'
+        + '<div class="browse">' + mmAllNames.map(n => {
+            const grp = GROUP_OF[n] ? ' <small style="opacity:0.7">(' + esc(GROUP_OF[n]) + ')</small>' : '';
+            const withImg = !!WIKI_MAP[n];
+            const a = ANIMALS.find(x=>x.name===n);
+            const cnt = a && a.kind==="group" ? (a.sub_names||[]).length + " Arten" : (a? a.sections.length + " Äste" : "");
+            return '<div class="browse-cat' + (withImg?' with-img':'') + '" data-mm="' + esc(n) + '">'
+              + (withImg ? '<div class="cat-img" data-wiki-name="' + esc(n) + '"></div>' : '')
+              + '<div class="bc-name">' + esc(n) + grp + '</div>'
+              + '<div class="bc-meta"><span>' + cnt + '</span></div></div>';
+          }).join("") + '</div>';
+      mindmapView.innerHTML = h;
+      mindmapView.querySelectorAll(".browse-cat").forEach(el => {
+        el.addEventListener("click", () => { currentMindmap = el.dataset.mm; renderMindmap(); });
+      });
+      const picker = document.getElementById("mmPicker");
+      picker.addEventListener("change", () => { if(mmAllNames.includes(picker.value)){ currentMindmap = picker.value; renderMindmap(); } });
+      loadWikiImages(mindmapView);
+      return;
+    }
+    const name = currentMindmap;
+    const svg = buildMindmapSVG(name);
+    let h = '<div class="cardmeta"><span>Mindmap</span></div>'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">'
+      + '<h2 style="font-family:\'Fraunces\',serif;font-size:26px;margin:0;color:var(--bark)">' + esc(name) + '</h2>'
+      + '<div style="display:flex;gap:8px"><button class="ghost" id="mmSteckBtn">📋 Steckbrief</button>'
+      + '<button class="ghost" id="mmBackBtn">← alle Mindmaps</button></div></div>';
+    if(svg){
+      h += '<div class="mm-wrap"><div class="mm-scroll">' + svg + '</div>'
+         + '<div class="mm-note">Der Kern ist das Tier, die Äste sind die Rubriken deiner Notizen. Zum Vertiefen den vollständigen <b>Steckbrief</b> oder <b>Lesen</b>-Modus nutzen.</div></div>';
+    } else {
+      h += '<div class="empty">Für „' + esc(name) + '" gibt es zu wenige Notizen für eine Mindmap.</div>';
+    }
+    mindmapView.innerHTML = h;
+    document.getElementById("mmBackBtn").addEventListener("click", () => { currentMindmap=null; renderMindmap(); });
+    const sb = document.getElementById("mmSteckBtn");
+    if(sb) sb.addEventListener("click", () => { currentSteckAnimal = name; setMode("steck"); });
+  }
+
+
   function renderRead(){
     updateProgress();
     // View 3: reading a specific animal
@@ -1954,16 +2321,16 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
     // close any open read modal
     const rm = document.getElementById("readModal"); if(rm) rm.remove();
     if(m !== "read") readGroup = null;
-    ["Cards","Quiz","Exam","Steck","Read","Compare","Listen","Browse"].forEach(k => {
+    ["Cards","Quiz","Exam","Steck","Mindmap","Table","Read","Compare","Listen","Browse"].forEach(k => {
       const b = document.getElementById("mode"+k+"Btn");
       if(b) b.classList.toggle("active", m===k.toLowerCase());
     });
-    ["cards","quiz","exam","steck","read","compare","listen","browse"].forEach(v => {
+    ["cards","quiz","exam","steck","mindmap","table","read","compare","listen","browse"].forEach(v => {
       document.getElementById(v+"View").style.display = v===m?"":"none";
     });
     // controls visibility — the Bilderquiz ("quiz") has its own group picker, so hide the card filters there
     const learnMode = (m==="cards"||m==="exam");
-    const noControls = (m==="browse"||m==="steck"||m==="read"||m==="compare"||m==="quiz");
+    const noControls = (m==="browse"||m==="steck"||m==="read"||m==="compare"||m==="quiz"||m==="mindmap"||m==="table");
     document.getElementById("shuffleBtn").style.display = (m==="cards")?"":"none";
     document.getElementById("starFilterBtn").style.display = learnMode?"":"none";
     document.getElementById("hardFilterBtn").style.display = learnMode?"":"none";
@@ -1973,7 +2340,7 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
     // Offline-image panel only where images actually appear
     const imgPanel = document.getElementById("imgPanel");
     if(imgPanel){
-      const showImgPanel = (m==="quiz"||m==="steck"||m==="read"||m==="browse");
+      const showImgPanel = (m==="quiz"||m==="steck"||m==="read"||m==="browse"||m==="mindmap");
       imgPanel.style.display = showImgPanel ? "" : "none";
     }
     exam = null;
@@ -1985,6 +2352,8 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
     else if(mode==="quiz") renderQuiz();
     else if(mode==="exam") renderExam();
     else if(mode==="steck") renderSteck();
+    else if(mode==="mindmap") renderMindmap();
+    else if(mode==="table") renderTable();
     else if(mode==="read") renderRead();
     else if(mode==="compare") renderCompare();
     else if(mode==="listen") renderListen();
@@ -1997,6 +2366,8 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
   document.getElementById("modeQuizBtn").addEventListener("click", ()=>setMode("quiz"));
   document.getElementById("modeExamBtn").addEventListener("click", ()=>setMode("exam"));
   document.getElementById("modeSteckBtn").addEventListener("click", ()=>{ currentSteckAnimal=null; setMode("steck"); });
+  document.getElementById("modeMindmapBtn").addEventListener("click", ()=>{ currentMindmap=null; setMode("mindmap"); });
+  document.getElementById("modeTableBtn").addEventListener("click", ()=>setMode("table"));
   document.getElementById("modeReadBtn").addEventListener("click", ()=>{ currentReadAnimal=null; readGroup=null; setMode("read"); });
   document.getElementById("modeCompareBtn").addEventListener("click", ()=>setMode("compare"));
   document.getElementById("modeListenBtn").addEventListener("click", ()=>setMode("listen"));
