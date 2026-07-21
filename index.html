@@ -77,6 +77,8 @@
     color: var(--moss); text-transform: uppercase; margin-top: 5px;
   }
   html[data-theme="light"] .brand small { color: var(--moss-2); }
+  .brand small .byline { color: #ffffff; letter-spacing: 1.2px; }
+  html[data-theme="light"] .brand small .byline { color: var(--bark); }
   .head-right { display: flex; align-items: center; gap: 16px; }
   .stat-mini {
     font-family: 'JetBrains Mono', monospace; font-size: 11px;
@@ -651,7 +653,7 @@
         <path d="M12 17l-3-2M12 17l3-2"/>
       </svg>
       <span>Jagdkurs&nbsp;Feldbuch
-        <small>Wildkunde · Prüfung 2026</small>
+        <small>Wildkunde · Prüfung 2026 &nbsp;<span class="byline">made by Otto Hatschek</span></small>
       </span>
     </div>
     <div class="head-right">
