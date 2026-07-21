@@ -271,7 +271,31 @@
     border:1px solid var(--line); margin-bottom:16px;
     display:flex; align-items:center; justify-content:center;
   }
-  .iq-photo img { width:100%; height:100%; object-fit:cover; display:block; animation:imgin 0.3s ease-out; }
+  .iq-photo img { width:100%; height:100%; object-fit:cover; display:block; animation:imgin 0.3s ease-out; cursor:zoom-in; }
+  .iq-photo.zoomable::after {
+    content:"⤢ Antippen zum Vergrößern"; position:absolute; bottom:8px; right:8px;
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:0.3px;
+    background:rgba(34,48,38,0.72); color:#fff; padding:4px 8px; border-radius:6px; pointer-events:none;
+  }
+  /* ---------- Vollbild-Lightbox (Bilderquiz) ---------- */
+  .lightbox {
+    position:fixed; inset:0; z-index:2000; background:rgba(15,20,16,0.94);
+    display:flex; align-items:center; justify-content:center; padding:0;
+    animation:lbfade 0.2s ease-out;
+    padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);
+  }
+  @keyframes lbfade { from { opacity:0; } to { opacity:1; } }
+  .lightbox-img { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+  .lightbox-img img { max-width:100%; max-height:100%; object-fit:contain; display:block; }
+  .lightbox-close {
+    position:fixed; top:calc(env(safe-area-inset-top) + 12px); right:14px; z-index:2010;
+    background:rgba(255,255,255,0.16); color:#fff; border:1.5px solid rgba(255,255,255,0.5);
+    border-radius:24px; padding:11px 18px; font-family:'Work Sans',sans-serif; font-size:15px; font-weight:600;
+    cursor:pointer; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    display:flex; align-items:center; gap:6px; box-shadow:0 2px 12px rgba(0,0,0,0.35);
+  }
+  .lightbox-close:hover { background:rgba(255,255,255,0.28); }
+  .lightbox-close:active { transform:scale(0.95); }
   .iq-photo .iq-loading {
     font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft);
     letter-spacing:0.5px; text-align:center; padding:20px;
@@ -663,6 +687,11 @@
     <b>„Zum Home-Bildschirm"</b> wählen. Danach startet das Feldbuch wie eine echte App —
     im Vollbild und mit eigenem Icon.
   </div>
+</div>
+
+<div class="lightbox" id="lightbox" style="display:none" aria-hidden="true">
+  <button class="lightbox-close" id="lightboxClose" aria-label="Zurück zur Frage">✕ Zurück</button>
+  <div class="lightbox-img" id="lightboxImg"></div>
 </div>
 
 <script>
@@ -1142,7 +1171,12 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
         img.src = url;
         photo.innerHTML = "";
         photo.appendChild(img);
+        photo.classList.add("zoomable");
+        // tap/click the photo → open fullscreen
+        photo.onclick = () => openLightbox(url);
       } else {
+        photo.classList.remove("zoomable");
+        photo.onclick = null;
         photo.innerHTML = '<div class="iq-loading">Für diesen Vogel ist gerade kein Bild verfügbar.<br>Tipp „Weiter →" oder wähl eine andere Gruppe.</div>';
         // auto-reveal next button so user isn't stuck
         const nb = document.getElementById("nextQuizBtn"); if(nb) nb.style.display = "inline-block";
@@ -2572,6 +2606,34 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
   // image panel buttons
   document.getElementById("imgDownloadBtn").addEventListener("click", downloadAllImages);
   document.getElementById("imgClearBtn").addEventListener("click", clearAllImages);
+
+  // ---------- Vollbild-Lightbox (Bilderquiz) ----------
+  const _lightbox = document.getElementById("lightbox");
+  const _lightboxImg = document.getElementById("lightboxImg");
+  function openLightbox(url){
+    if(!_lightbox || !_lightboxImg) return;
+    _lightboxImg.innerHTML = "";
+    const img = document.createElement("img");
+    img.alt = "";
+    img.src = url;
+    _lightboxImg.appendChild(img);
+    _lightbox.style.display = "flex";
+    _lightbox.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";   // stop background scroll on mobile
+  }
+  function closeLightbox(){
+    if(!_lightbox) return;
+    _lightbox.style.display = "none";
+    _lightbox.setAttribute("aria-hidden", "true");
+    if(_lightboxImg) _lightboxImg.innerHTML = "";
+    document.body.style.overflow = "";
+  }
+  const _lbClose = document.getElementById("lightboxClose");
+  if(_lbClose) _lbClose.addEventListener("click", closeLightbox);
+  // tap on the dark background also closes (but not when tapping the image itself)
+  if(_lightbox) _lightbox.addEventListener("click", e => { if(e.target === _lightbox || e.target === _lightboxImg) closeLightbox(); });
+  // Escape key closes (desktop)
+  document.addEventListener("keydown", e => { if(e.key === "Escape" && _lightbox && _lightbox.style.display !== "none") closeLightbox(); });
 
   // iOS "Add to Home Screen" hint — only on iPhone/iPad Safari, only if not already installed
   (function iosInstallHint(){
