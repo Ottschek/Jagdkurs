@@ -1357,7 +1357,7 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
         moveMsg.className = "iq-move " + (isRight ? "up" : "down");
         if(isRight && newBox > oldBox) moveMsg.textContent = "✓ Fach " + oldBox + " → " + newBox + (newBox===4 ? " · sitzt! 🟢" : "");
         else if(isRight) moveMsg.textContent = "✓ Bleibt in Fach 4 · sitzt! 🟢";
-        else moveMsg.textContent = "✗ Zurück in Fach 1 🔴";
+        else moveMsg.textContent = "✗ Zurück in Fach 1 🖕";
         const footer = quizView.querySelector(".quiz-footer");
         if(footer) footer.parentNode.insertBefore(moveMsg, footer);
         // live-update the Fächer-Balken
