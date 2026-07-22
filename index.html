@@ -2011,6 +2011,8 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
     { key: "tauch",    name: "Tauchenten",        icon: "🌊", members: ["Enten im Überblick","Kolbenente","Reiherente","Tafelente","Moorente","Schellente"] },
     { key: "wasser",   name: "Wasservögel (sonstige)", icon: "🐟", members: ["Grau- oder Fischreiher","Kormoran","Blässhuhn","Haubentaucher","Säger (Gänsesäger, Mittelsäger, Zwergsäger)"] },
     { key: "grundl",   name: "Grundlagen-Kapitel", icon: "📖", members: ["Federwild – Grundlagen","Greifvögel – Grundlagen","Gänse & Enten – Grundlagen"] },
+    { key: "waffen",   name: "Waffenkunde",        icon: "🎯", members: ["Waffenkunde","Jagdmunition","Jagdoptik","Waffenpflege & Sicherheit"] },
+    { key: "hunde",    name: "Jagdhunde",           icon: "🐕", members: ["Jagdhunde"] },
   ];
   // filter members to only ones that actually exist in ANIMALS
   const _animalNames = new Set(ANIMALS.map(a => a.name));
@@ -2331,7 +2333,7 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
     // View 1: category tiles (always). Modal (View 2) is layered on top when readGroup is set.
     readView.innerHTML =
       '<div class="cardmeta"><span>Zum Durchlesen: Kategorie wählen</span></div>'
-      + '<div class="field" style="margin:6px 0 18px"><input class="picker" id="readPicker" list="readDatalist" placeholder="Direkt nach einem Tier suchen — z. B. Rehwild, Stockente …" style="padding-left:12px"></div>'
+      + '<div class="field" style="margin:6px 0 18px"><input class="picker" id="readPicker" list="readDatalist" placeholder="Direkt nach einem Tier suchen — z. B. Rehwild, Stockente, Waffenkunde …" style="padding-left:12px"></div>'
       + '<datalist id="readDatalist">' + ANIMALS.filter(a => a.kind === "animal" || a.kind === "group").map(a => '<option value="' + esc(a.name) + '">').join("") + '</datalist>'
       + '<div class="cat-grid">'
         + READ_CATEGORIES.filter(c => c.members.length).map(c => {
