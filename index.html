@@ -387,6 +387,84 @@
   .transcript p { margin: 0 0 7px; font-size: 14.5px; line-height: 1.55; padding: 3px 7px; border-radius: 5px; transition: background 0.2s; }
   .transcript p.reading { background: rgba(201,125,61,0.22); }
 
+
+  /* ---------- Steckbrief-Edit-Modus ---------- */
+  .steck-edit-note {
+    background: rgba(201,125,61,0.10); border-left: 3px solid var(--amber);
+    border-radius: 5px; padding: 9px 12px; font-size: 13px; color: var(--bark);
+    margin: 6px 0 16px; line-height: 1.5;
+  }
+  .steck-edit-note b { color: var(--rust); }
+  .edit-section {
+    background: var(--paper-2); border: 1px solid var(--line);
+    border-radius: 9px; padding: 12px 14px; margin-bottom: 12px;
+  }
+  .edit-section-head { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  .edit-heading {
+    flex:1; font-family:'Fraunces',serif; font-size:16px; font-weight:600; color:var(--bark);
+    border:1px solid var(--line); border-radius:6px; padding:7px 10px;
+    background:var(--paper); width:100%;
+  }
+  .edit-heading:focus { outline:2px solid var(--amber); outline-offset:1px; border-color:var(--amber); }
+  .edit-icon-btn {
+    background: none; border: 1px solid var(--line-strong);
+    color: var(--rust); border-radius: 6px;
+    cursor: pointer; padding: 5px 9px; font-size: 13px; line-height:1;
+    transition: background 0.15s;
+  }
+  .edit-icon-btn:hover { background: rgba(166,67,43,0.10); }
+  .edit-bullet-row { display:flex; gap:6px; align-items:flex-start; margin-bottom:6px; }
+  .edit-bullet {
+    flex:1; font-family:'Work Sans',sans-serif; font-size:14px; line-height:1.5; color:var(--ink);
+    border:1px solid var(--line); border-radius:6px; padding:7px 10px; background:var(--paper);
+    resize:vertical; min-height:38px; width:100%;
+  }
+  .edit-bullet:focus { outline:2px solid var(--amber); outline-offset:1px; border-color:var(--amber); }
+  .edit-add-btn {
+    background: rgba(110,127,94,0.12); color: #3f4d33; border: 1px dashed var(--moss);
+    border-radius: 6px; padding: 7px 12px; font-size: 12.5px; font-weight: 500;
+    cursor: pointer; font-family: 'Work Sans', sans-serif;
+    transition: background 0.15s;
+  }
+  .edit-add-btn:hover { background: rgba(110,127,94,0.22); }
+  .edit-add-sec {
+    display: block; width: 100%; text-align: center;
+    background: rgba(110,127,94,0.10); color: #3f4d33; border: 1.5px dashed var(--moss);
+    border-radius: 8px; padding: 12px; font-size: 14px; font-weight: 600;
+    cursor: pointer; font-family: 'Work Sans', sans-serif; margin-top: 6px;
+    transition: background 0.15s;
+  }
+  .edit-add-sec:hover { background: rgba(110,127,94,0.20); }
+  .edit-actions {
+    display: flex; gap: 10px; flex-wrap: wrap; margin: 22px 0 0;
+    padding: 16px 0 0; border-top: 1px solid var(--line);
+  }
+  .edit-save {
+    background: var(--bark); color: var(--paper); border: none;
+    padding: 11px 22px; border-radius: 7px; font-family: 'Work Sans', sans-serif;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .edit-save:hover { background: #5c4632; }
+  .edit-cancel {
+    background: transparent; color: var(--ink); border: 1px solid var(--line-strong);
+    padding: 11px 22px; border-radius: 7px; font-family: 'Work Sans', sans-serif;
+    font-size: 14px; font-weight: 500; cursor: pointer;
+  }
+  .edit-cancel:hover { background: rgba(74,54,38,0.06); }
+  .edit-reset {
+    background: transparent; color: var(--rust); border: 1px solid var(--rust);
+    padding: 11px 20px; border-radius: 7px; font-family: 'Work Sans', sans-serif;
+    font-size: 13px; font-weight: 500; cursor: pointer; margin-left: auto;
+  }
+  .edit-reset:hover { background: rgba(166,67,43,0.08); }
+  .edited-badge {
+    display: inline-block; margin-left: 6px;
+    background: var(--amber); color: #fff;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600;
+    letter-spacing: 0.6px; padding: 2px 7px; border-radius: 10px;
+    vertical-align: middle; text-transform: uppercase;
+  }
+
   /* ---------- Overview / browse ---------- */
   .browse { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px,1fr)); gap: 10px; }
   .browse-cat { border: 1px solid var(--line); border-radius: 9px; background: var(--paper-2); padding: 13px 14px; cursor: pointer;
@@ -669,7 +747,7 @@
       <button id="modeSteckBtn">Steckbrief</button>
       <button id="modeMindmapBtn">Mindmap</button>
       <button id="modeTableBtn">Tabellen</button>
-      <button id="modeReadBtn">Lesen</button>
+      <button id="modeReadBtn" style="display:none" aria-hidden="true">Lesen</button>
       <button id="modeCompareBtn">Vergleich</button>
       <button id="modeListenBtn">Vorlesen</button>
       <button id="modeBrowseBtn">Übersicht</button>
@@ -745,7 +823,7 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
 (function(){
   "use strict";
   const STORAGE_KEY = "feldbuch_v3";
-  let store = { known:{}, star:{}, hard:{}, theme:"dark", notes:{}, cmp:["","",""], box:{}, leitner:true };
+  let store = { known:{}, star:{}, hard:{}, theme:"dark", notes:{}, cmp:["","",""], box:{}, leitner:true, edits:{} };
   try { store = Object.assign(store, JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}); } catch(e){}
   function save(){ try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); } catch(e){} }
 
@@ -776,9 +854,21 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
   ANIMALS.forEach(a => {
     if (a.kind === "group") { IS_GROUP[a.name] = true; (a.sub_names||[]).forEach(n => GROUP_OF[n] = a.name); }
   });
-  function animalSections(name){
+  function originalAnimalSections(name){
     const a = ANIMALS.find(x => x.name === name);
     return a ? a.sections : [];
+  }
+  function animalSections(name){
+    if(store.edits && store.edits[name]) return store.edits[name];
+    return originalAnimalSections(name);
+  }
+  function isEdited(name){ return !!(store.edits && store.edits[name]); }
+  function resetAnimalSections(name){ if(store.edits) delete store.edits[name]; save(); }
+  function saveAnimalSections(name, sections){
+    if(!store.edits) store.edits = {};
+    // Deep-clone to break references to live DOM values
+    store.edits[name] = JSON.parse(JSON.stringify(sections));
+    save();
   }
   function animalKind(name){
     const a = ANIMALS.find(x => x.name === name);
@@ -950,6 +1040,8 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
   let hardOnly = false;
   let searchTerm = "";
   let currentSteckAnimal = null;
+  let steckGroup = null;
+  let steckEditing = false;
   let currentReadAnimal = null;
 
   const searchBox = document.getElementById("searchBox");
@@ -1456,99 +1548,329 @@ const ANIMALS = [{"name": "Rehwild", "kind": "animal", "sections": [{"heading": 
 
   function renderSteck(){
     updateProgress();
-    if(!currentSteckAnimal){
-      steckView.innerHTML =
-        '<div class="cardmeta"><span>Alle Steckbriefe</span></div>'
-        + '<div class="field" style="margin:6px 0 18px"><input class="picker" id="steckPicker" list="steckDatalist" placeholder="Tier suchen — z. B. Rehwild, Stockente …" style="padding-left:12px"></div>'
-        + '<datalist id="steckDatalist">' + steckAllNames.map(n => '<option value="' + esc(n) + '">').join("") + '</datalist>'
-        + '<div class="browse">' + steckAllNames.map(n => {
-            const sec = animalSections(n);
-            const grp = GROUP_OF[n] ? ' <small style="opacity:0.7">(' + esc(GROUP_OF[n]) + ')</small>' : '';
-            const withImg = !!WIKI_MAP[n];
-            return '<div class="browse-cat' + (withImg?' with-img':'') + '" data-animal="' + esc(n) + '">'
-              + (withImg ? '<div class="cat-img" data-wiki-name="' + esc(n) + '"></div>' : '')
-              + '<div class="bc-name">' + esc(n) + grp + '</div>'
-              + '<div class="bc-meta"><span>' + sec.length + ' Rubriken</span></div></div>';
-          }).join("") + '</div>';
-      steckView.querySelectorAll(".browse-cat").forEach(el => {
-        el.addEventListener("click", () => { currentSteckAnimal = el.dataset.animal; renderSteck(); });
-      });
-      const picker = document.getElementById("steckPicker");
-      picker.addEventListener("change", () => {
-        if(steckAllNames.includes(picker.value)){ currentSteckAnimal = picker.value; renderSteck(); }
-      });
-      picker.focus();
-      // Bilder laden (Wikipedia)
-      loadWikiImages(steckView);
+    // ---------- View C: detail view (an individual animal) ----------
+    if(currentSteckAnimal){
+      renderSteckAnimal();
       return;
     }
+    // ---------- View A: category tiles (READ_CATEGORIES-style) ----------
+    steckView.innerHTML =
+      '<div class="cardmeta"><span>Steckbrief: Kategorie wählen</span></div>'
+      + '<div class="field" style="margin:6px 0 18px"><input class="picker" id="steckPicker" list="steckDatalist" placeholder="Direkt suchen — z. B. Rehwild, Stockente, Waffenkunde …" style="padding-left:12px"></div>'
+      + '<datalist id="steckDatalist">' + ANIMALS.filter(a => a.kind === "animal" || a.kind === "group").map(a => '<option value="' + esc(a.name) + '">').join("") + '</datalist>'
+      + '<div class="cat-grid">'
+        + READ_CATEGORIES.filter(c => c.members.length).map(c => {
+            return '<div class="cat-tile" data-cat="' + c.key + '">'
+              + '<div><div class="ct-icon">' + c.icon + '</div>'
+              + '<div class="ct-name">' + esc(c.name) + '</div></div>'
+              + '<div class="ct-count">' + c.members.length + ' Kapitel</div>'
+              + '<div class="ct-arrow">→</div>'
+            + '</div>';
+          }).join("")
+      + '</div>';
+    steckView.querySelectorAll(".cat-tile").forEach(el => {
+      el.addEventListener("click", () => { steckGroup = el.dataset.cat; renderSteckModal(); });
+    });
+    const picker = document.getElementById("steckPicker");
+    picker.addEventListener("change", () => {
+      if(steckAllNames.includes(picker.value)){ currentSteckAnimal = picker.value; renderSteck(); }
+    });
+    // if a modal was open, re-render it on top
+    if(steckGroup) renderSteckModal();
+  }
+
+  // ---------- View B: modal grid inside a chosen category ----------
+  function renderSteckModal(){
+    const existing = document.getElementById("steckModal");
+    if(existing) existing.remove();
+    if(!steckGroup) return;
+    const cat = READ_CATEGORIES.find(c => c.key === steckGroup);
+    if(!cat){ steckGroup = null; return; }
+
+    const modal = document.createElement("div");
+    modal.className = "modal-backdrop"; modal.id = "steckModal";
+    modal.innerHTML =
+      '<div class="modal" role="dialog" aria-modal="true">'
+        + '<div class="modal-head">'
+          + '<div class="m-title">' + cat.icon + '&nbsp; ' + esc(cat.name) + '<small>' + cat.members.length + ' Kapitel zur Auswahl</small></div>'
+          + '<button class="modal-close" id="steckModalClose" title="Schließen" aria-label="Schließen">✕</button>'
+        + '</div>'
+        + '<div class="modal-body"><div class="browse">'
+          + cat.members.map(name => {
+              const a = ANIMALS.find(x => x.name === name);
+              if(!a) return "";
+              const meta = a.kind === "group" ? (a.sub_names.length + ' Arten') : (animalSections(name).length + ' Rubriken');
+              const withImg = !!WIKI_MAP[name];
+              const editedTag = isEdited(name) ? ' <span class="edited-badge">bearbeitet</span>' : '';
+              return '<div class="browse-cat' + (withImg?' with-img':'') + '" data-name="' + esc(name) + '">'
+                + (withImg ? '<div class="cat-img" data-wiki-name="' + esc(name) + '"></div>' : '')
+                + '<div class="bc-name">' + esc(name) + editedTag + '</div>'
+                + '<div class="bc-meta"><span>' + meta + '</span></div></div>';
+            }).join("")
+        + '</div></div>'
+      + '</div>';
+    document.body.appendChild(modal);
+
+    function closeSteckModal(){ steckGroup = null; const m = document.getElementById("steckModal"); if(m) m.remove(); }
+    document.getElementById("steckModalClose").addEventListener("click", closeSteckModal);
+    modal.addEventListener("click", e => { if(e.target === modal) closeSteckModal(); });
+    const onEsc = e => { if(e.key === "Escape") { closeSteckModal(); document.removeEventListener("keydown", onEsc); } };
+    document.addEventListener("keydown", onEsc);
+
+    modal.querySelectorAll(".browse-cat").forEach(el => {
+      el.addEventListener("click", () => { currentSteckAnimal = el.dataset.name; closeSteckModal(); renderSteck(); });
+    });
+    loadWikiImages(modal);
+  }
+
+  // ---------- View C: single animal — display or edit mode ----------
+  function renderSteckAnimal(){
     const name = currentSteckAnimal;
+    const a = ANIMALS.find(x => x.name === name);
+    if(!a){ currentSteckAnimal = null; steckEditing = false; renderSteck(); return; }
+
+    // if it's a group (e.g. "Enten im Überblick"), fall through to detail view
+    // that shows the group's own sections + a picker of its sub-animals
     const sections = animalSections(name);
-    if(!sections.length){
+    const parentCat = READ_CATEGORIES.find(c => c.members.includes(name));
+
+    if(!sections.length && (!a.sub_names || !a.sub_names.length)){
       steckView.innerHTML = '<div class="empty">Für „' + esc(name) + '" liegen keine detaillierten Notizen vor.<br><br><button class="btn-primary" id="steckBackBtn">← zurück zur Übersicht</button></div>';
-      document.getElementById("steckBackBtn").addEventListener("click", () => { currentSteckAnimal=null; renderSteck(); });
+      document.getElementById("steckBackBtn").addEventListener("click", () => { currentSteckAnimal=null; steckEditing=false; renderSteck(); });
       return;
     }
+
+    // ---- EDIT MODE ----
+    if(steckEditing){
+      renderSteckEditor(name, sections);
+      return;
+    }
+
+    // ---- DISPLAY MODE ----
     const group = GROUP_OF[name];
-    // Determine neighbours for navigation (only within same group if applicable, otherwise all)
+    // Determine neighbours for navigation
     let siblings;
-    if(group){ const g = ANIMALS.find(a => a.name===group); siblings = g.sub_names.slice(); }
+    if(group){ const g = ANIMALS.find(x => x.name===group); siblings = g.sub_names.slice(); }
+    else if(parentCat){ siblings = parentCat.members.slice(); }
     else { siblings = steckAllNames.filter(n => !GROUP_OF[n]); }
     const iIn = siblings.indexOf(name);
     const prev = iIn > 0 ? siblings[iIn-1] : null;
     const next = iIn < siblings.length-1 ? siblings[iIn+1] : null;
 
     const noteVal = store.notes[name] || "";
-
     const steckHeaderImg = WIKI_MAP[name] ? '<div class="prof-image" data-wiki-name="' + esc(name) + '"></div>' : '';
+    const editedBadge = isEdited(name) ? ' <span class="edited-badge">bearbeitet</span>' : '';
+
+    // For groups, also render each sub-animal's sections underneath
+    let subGroupHtml = '';
+    if(a.kind === "group" && a.sub_names && a.sub_names.length){
+      subGroupHtml = '<h3 style="font-family:\'JetBrains Mono\',monospace;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-soft);margin:26px 0 8px">Arten in dieser Gruppe</h3>'
+        + '<div class="browse">' + a.sub_names.map(sn => {
+            const sub = ANIMALS.find(x => x.name===sn && x.kind==="animal");
+            if(!sub) return '';
+            const secs = animalSections(sn);
+            const withImg = !!WIKI_MAP[sn];
+            const edTag = isEdited(sn) ? ' <span class="edited-badge">bearbeitet</span>' : '';
+            return '<div class="browse-cat' + (withImg?' with-img':'') + '" data-goto="' + esc(sn) + '">'
+              + (withImg ? '<div class="cat-img" data-wiki-name="' + esc(sn) + '"></div>' : '')
+              + '<div class="bc-name">' + esc(sn) + edTag + '</div>'
+              + '<div class="bc-meta"><span>' + secs.length + ' Rubriken</span></div></div>';
+          }).join("") + '</div>';
+    }
+
+    const H3 = 'font-family:\'JetBrains Mono\',monospace;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-soft);margin:26px 0 8px';
+
     steckView.innerHTML =
       steckHeaderImg
       + '<div class="prof-hero">'
-        + '<div><div class="prof-title">' + esc(name) + '<small>Steckbrief' + (group?' · Gruppe: ' + esc(group):'') + '</small></div></div>'
+        + '<div><div class="prof-title">' + esc(name) + editedBadge + '<small>Steckbrief' + (group?' · Gruppe: ' + esc(group):'') + (parentCat && !group ? ' · ' + esc(parentCat.name) : '') + '</small></div></div>'
         + '<div class="prof-actions">'
+          + '<button class="ghost" id="steckEditBtn" title="Text bearbeiten">✏️ Bearbeiten</button>'
           + '<button class="ghost" id="steckPrintBtn" title="Drucken/als PDF speichern">🖨 Drucken</button>'
           + '<button class="ghost" id="steckListenBtn" title="Vorlesen">🔊 Vorlesen</button>'
-          + '<button class="ghost" id="steckBackBtn2">← Übersicht</button>'
+          + (parentCat ? '<button class="ghost" id="steckGroupBtn">↩ ' + esc(parentCat.name) + '</button>' : '')
+          + '<button class="ghost" id="steckBackBtn2">← Kategorien</button>'
         + '</div>'
       + '</div>'
-      + '<h3 style="font-family:\'JetBrains Mono\',monospace;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-soft);margin:0 0 8px">Auf einen Blick</h3>'
-      + '<table class="prof"><tbody>'
-        + sections.map(s => {
-            const bullets = s.bullets.map(b => {
-              const hint = /^Hinweis:|^Ergänzend/.test(b);
-              return hint ? '<div class="prof-note">' + esc(b) + '</div>' : '<li>' + esc(b) + '</li>';
-            });
-            const hasBullet = s.bullets.some(b => !/^Hinweis:|^Ergänzend/.test(b));
-            const html = (hasBullet ? '<ul>' + bullets.filter(x => x.startsWith('<li')).join("") + '</ul>' : "")
-                       + bullets.filter(x => !x.startsWith('<li')).join("");
-            return '<tr><th>' + esc(s.heading) + '</th><td>' + html + '</td></tr>';
-        }).join("")
-      + '</tbody></table>'
-      + '<h3 style="font-family:\'JetBrains Mono\',monospace;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-soft);margin:0 0 8px">Fließtext</h3>'
-      + '<div class="prof-prose">'
-        + sections.map(s => {
-            const paras = s.bullets.map(b => {
-              const hint = /^Hinweis:|^Ergänzend/.test(b);
-              return '<p' + (hint?' class="hint"':'') + '>' + esc(b) + '</p>';
-            }).join("");
-            return '<h4>' + esc(s.heading) + '</h4>' + paras;
-        }).join("")
-      + '</div>'
-      + '<h3 style="font-family:\'JetBrains Mono\',monospace;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-soft);margin:26px 0 8px">Meine Notizen</h3>'
+      + (sections.length ? (
+          '<h3 style="' + H3 + ';margin-top:0">Auf einen Blick</h3>'
+          + '<table class="prof"><tbody>'
+            + sections.map(s => {
+                const bullets = s.bullets.map(b => {
+                  const hint = /^Hinweis:|^Ergänzend/.test(b);
+                  return hint ? '<div class="prof-note">' + esc(b) + '</div>' : '<li>' + esc(b) + '</li>';
+                });
+                const hasBullet = s.bullets.some(b => !/^Hinweis:|^Ergänzend/.test(b));
+                const html = (hasBullet ? '<ul>' + bullets.filter(x => x.startsWith('<li')).join("") + '</ul>' : "")
+                           + bullets.filter(x => !x.startsWith('<li')).join("");
+                return '<tr><th>' + esc(s.heading) + '</th><td>' + html + '</td></tr>';
+            }).join("")
+          + '</tbody></table>'
+          + '<h3 style="' + H3 + '">Fließtext</h3>'
+          + '<div class="prof-prose">'
+            + sections.map(s => {
+                const paras = s.bullets.map(b => {
+                  const hint = /^Hinweis:|^Ergänzend/.test(b);
+                  return '<p' + (hint?' class="hint"':'') + '>' + esc(b) + '</p>';
+                }).join("");
+                return '<h4>' + esc(s.heading) + '</h4>' + paras;
+            }).join("")
+          + '</div>'
+        ) : '')
+      + subGroupHtml
+      + '<h3 style="' + H3 + '">Meine Notizen</h3>'
       + '<div class="prof-notes"><textarea id="steckNotes" placeholder="Eigene Notizen zu ' + esc(name) + ' — werden automatisch lokal gespeichert.">' + esc(noteVal) + '</textarea></div>'
       + '<div class="prof-nav"><button class="ghost" id="steckPrevBtn" ' + (prev?"":"disabled") + '>' + (prev? '← ' + esc(prev) : '← Anfang') + '</button>'
       + '<button class="ghost" id="steckNextBtn" ' + (next?"":"disabled") + '>' + (next? esc(next) + ' →' : 'Ende →') + '</button></div>';
 
-    document.getElementById("steckBackBtn2").addEventListener("click", () => { currentSteckAnimal=null; renderSteck(); });
+    document.getElementById("steckBackBtn2").addEventListener("click", () => { currentSteckAnimal=null; steckGroup=null; steckEditing=false; renderSteck(); });
+    if(parentCat) document.getElementById("steckGroupBtn").addEventListener("click", () => { currentSteckAnimal=null; steckEditing=false; steckGroup=parentCat.key; renderSteck(); });
+    document.getElementById("steckEditBtn").addEventListener("click", () => { steckEditing = true; renderSteckAnimal(); });
     document.getElementById("steckPrintBtn").addEventListener("click", () => window.print());
     document.getElementById("steckListenBtn").addEventListener("click", () => { readAloud(name, sections); });
-    if(prev) document.getElementById("steckPrevBtn").addEventListener("click", () => { currentSteckAnimal=prev; renderSteck(); });
-    if(next) document.getElementById("steckNextBtn").addEventListener("click", () => { currentSteckAnimal=next; renderSteck(); });
+    if(prev) document.getElementById("steckPrevBtn").addEventListener("click", () => { currentSteckAnimal=prev; steckEditing=false; renderSteck(); });
+    if(next) document.getElementById("steckNextBtn").addEventListener("click", () => { currentSteckAnimal=next; steckEditing=false; renderSteck(); });
+    steckView.querySelectorAll("[data-goto]").forEach(el => {
+      el.addEventListener("click", () => { currentSteckAnimal = el.dataset.goto; steckEditing=false; renderSteck(); });
+    });
     const ta = document.getElementById("steckNotes");
     let saveT;
-    ta.addEventListener("input", () => { clearTimeout(saveT); saveT = setTimeout(() => { store.notes[name] = ta.value; save(); }, 350); });
+    if(ta){ ta.addEventListener("input", () => { clearTimeout(saveT); saveT = setTimeout(() => { store.notes[name] = ta.value; save(); }, 350); }); }
     // Bilder laden (Wikipedia)
     loadWikiImages(steckView);
+  }
+
+  // ---------- Editor: turn the sections list into editable inputs ----------
+  function renderSteckEditor(name, sections){
+    // work on a deep clone so Cancel truly cancels
+    const working = JSON.parse(JSON.stringify(sections));
+    const parentCat = READ_CATEGORIES.find(c => c.members.includes(name));
+
+    function drawEditor(){
+      const H3 = 'font-family:\'JetBrains Mono\',monospace;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-soft);margin:0 0 10px';
+      steckView.innerHTML =
+        '<div class="prof-hero">'
+          + '<div><div class="prof-title">' + esc(name) + '<small>Bearbeiten' + (parentCat ? ' · ' + esc(parentCat.name) : '') + '</small></div></div>'
+        + '</div>'
+        + '<div class="steck-edit-note">'
+          + '<b>Bearbeitungsmodus:</b> Ändere Rubriken und Stichpunkte hier direkt. '
+          + 'Deine Änderungen werden lokal in diesem Gerät gespeichert und ersetzen die Original-Mitschrift. '
+          + 'Mit <b>„Auf Original zurücksetzen"</b> holst du die Anfangs-Version zurück.'
+        + '</div>'
+        + '<h3 style="' + H3 + '">Rubriken</h3>'
+        + '<div id="editSections">'
+          + working.map((s, si) => sectionHtml(s, si)).join("")
+        + '</div>'
+        + '<button class="edit-add-sec" id="btnAddSec">+ Neue Rubrik hinzufügen</button>'
+        + '<div class="edit-actions">'
+          + '<button class="edit-save" id="btnSaveEdit">💾 Speichern</button>'
+          + '<button class="edit-cancel" id="btnCancelEdit">Abbrechen</button>'
+          + '<button class="edit-reset" id="btnResetEdit">↺ Auf Original zurücksetzen</button>'
+        + '</div>';
+      wire();
+    }
+
+    function sectionHtml(s, si){
+      return '<div class="edit-section" data-si="' + si + '">'
+        + '<div class="edit-section-head">'
+          + '<input class="edit-heading" data-si="' + si + '" value="' + esc(s.heading || "") + '" placeholder="Titel der Rubrik">'
+          + '<button class="edit-icon-btn" data-del-sec="' + si + '" title="Rubrik löschen">🗑</button>'
+        + '</div>'
+        + s.bullets.map((b, bi) => bulletHtml(b, si, bi)).join("")
+        + '<button class="edit-add-btn" data-add-b="' + si + '">+ Stichpunkt hinzufügen</button>'
+      + '</div>';
+    }
+
+    function bulletHtml(b, si, bi){
+      const rows = Math.min(6, Math.max(1, Math.ceil((b||"").length / 70)));
+      return '<div class="edit-bullet-row" data-si="' + si + '" data-bi="' + bi + '">'
+        + '<textarea class="edit-bullet" rows="' + rows + '" data-si="' + si + '" data-bi="' + bi + '" placeholder="Stichpunkt …">' + esc(b) + '</textarea>'
+        + '<button class="edit-icon-btn" data-del-b="' + si + ':' + bi + '" title="Punkt löschen">🗑</button>'
+      + '</div>';
+    }
+
+    function syncFromDOM(){
+      steckView.querySelectorAll(".edit-heading").forEach(inp => {
+        const si = +inp.dataset.si;
+        if(working[si]) working[si].heading = inp.value;
+      });
+      steckView.querySelectorAll(".edit-bullet").forEach(ta => {
+        const si = +ta.dataset.si, bi = +ta.dataset.bi;
+        if(working[si] && working[si].bullets[bi] !== undefined) working[si].bullets[bi] = ta.value;
+      });
+    }
+
+    function wire(){
+      steckView.querySelectorAll("[data-del-sec]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const si = +btn.dataset.delSec;
+          syncFromDOM();
+          if(confirm("Diese Rubrik samt aller Stichpunkte löschen?")){
+            working.splice(si, 1);
+            drawEditor();
+          }
+        });
+      });
+      steckView.querySelectorAll("[data-del-b]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const [si, bi] = btn.dataset.delB.split(":").map(Number);
+          syncFromDOM();
+          working[si].bullets.splice(bi, 1);
+          drawEditor();
+        });
+      });
+      steckView.querySelectorAll("[data-add-b]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const si = +btn.dataset.addB;
+          syncFromDOM();
+          working[si].bullets.push("");
+          drawEditor();
+          // focus the newly added textarea
+          const tas = steckView.querySelectorAll('.edit-bullet[data-si="' + si + '"]');
+          if(tas.length) tas[tas.length - 1].focus();
+        });
+      });
+      document.getElementById("btnAddSec").addEventListener("click", () => {
+        syncFromDOM();
+        working.push({ heading: "", bullets: [""] });
+        drawEditor();
+        const heads = steckView.querySelectorAll(".edit-heading");
+        if(heads.length) heads[heads.length - 1].focus();
+      });
+      document.getElementById("btnSaveEdit").addEventListener("click", () => {
+        syncFromDOM();
+        // Clean up: drop empty bullets, drop sections that end up with no heading AND no bullets
+        const cleaned = working
+          .map(s => ({
+            heading: (s.heading || "").trim(),
+            bullets: (s.bullets || []).map(b => (b || "").trim()).filter(b => b.length),
+          }))
+          .filter(s => s.heading.length || s.bullets.length);
+        saveAnimalSections(name, cleaned);
+        steckEditing = false;
+        renderSteckAnimal();
+      });
+      document.getElementById("btnCancelEdit").addEventListener("click", () => {
+        steckEditing = false;
+        renderSteckAnimal();
+      });
+      document.getElementById("btnResetEdit").addEventListener("click", () => {
+        if(confirm("Deine Änderungen zu \u201E" + name + "\u201C verwerfen und die ursprüngliche Mitschrift wiederherstellen?")){
+          resetAnimalSections(name);
+          steckEditing = false;
+          renderSteckAnimal();
+        }
+      });
+      // auto-grow textareas as the user types
+      steckView.querySelectorAll(".edit-bullet").forEach(ta => {
+        ta.addEventListener("input", () => {
+          ta.style.height = "auto";
+          ta.style.height = (ta.scrollHeight + 2) + "px";
+        });
+      });
+    }
+
+    drawEditor();
   }
 
   // ============================================================
